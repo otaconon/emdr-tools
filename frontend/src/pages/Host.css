@@ -210,6 +210,23 @@ input[type="color"] {
     box-sizing: border-box;
 }
 
+.session-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.bounce-counter {
+    align-self: flex-start; /* aligns to top-right */
+}
+
 /* Fallback: gdy przeglądarka nie zna svh/dvh */
 @supports not (height: 100svh) {
     .host-root { height: 100vh; }

@@ -14,6 +14,9 @@ message WebSocketMessage {
 
     // Shared
     Params params = 5;
+
+    Play play = 6;
+    Stop stop = 7;
   }
 }
 
@@ -39,4 +42,12 @@ message Params {
   int32 speed = 2;
   string color = 3;
   string sid = 4;
+}
+
+message Play {
+  
+}
+
+message Stop {
+
 }

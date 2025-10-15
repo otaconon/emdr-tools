@@ -9,15 +9,19 @@ interface MovingCircleProps {
     boundToParent?: boolean;
     /** Zmiana tej wartości powoduje restart ruchu od lewej krawędzi */
     resetToken?: number | string;
+    onBounce?: () => void;
+    isPlaying?: boolean;
 }
 
 const MovingCircle: React.FC<MovingCircleProps> = ({
-                                                       size,
-                                                       speed,
-                                                       color,
-                                                       boundToParent = false,
-                                                       resetToken,
-                                                   }) => {
+    size,
+    speed,
+    color,
+    boundToParent = false,
+    resetToken,
+    onBounce,
+    isPlaying,
+}) => {
     const [positionX, setPositionX] = useState(0);
     const [containerWidth, setContainerWidth] = useState<number>(0);
 
@@ -61,18 +65,22 @@ const MovingCircle: React.FC<MovingCircleProps> = ({
             const last = lastTimeRef.current;
             if (last != null) {
                 const delta = (time - last) / 1000;
-                setPositionX((prev) => {
-                    let next = prev + direction.current * speedRef.current * delta;
-                    const maxX = Math.max(0, containerWidth - sizeRef.current);
-                    if (next < 0) {
-                        next = 0;
-                        direction.current = 1;
-                    } else if (next > maxX) {
-                        next = maxX;
-                        direction.current = -1;
-                    }
-                    return next;
-                });
+                if (isPlaying) {
+                    setPositionX((prev) => {
+                        let next = prev + direction.current * speedRef.current * delta;
+                        const maxX = Math.max(0, containerWidth - sizeRef.current);
+                        if (next < 0) {
+                            next = 0;
+                            direction.current = 1;
+                            onBounce?.();
+                        } else if (next > maxX) {
+                            next = maxX;
+                            direction.current = -1;
+                            onBounce?.();
+                        }
+                        return next;
+                    });
+                }
             }
             lastTimeRef.current = time;
             animationRef.current = requestAnimationFrame(animate);
