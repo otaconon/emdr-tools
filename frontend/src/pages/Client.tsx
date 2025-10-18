@@ -18,6 +18,7 @@ const Client: React.FC = () => {
     });
 
     const [resetToken, setResetToken] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(true);
 
     // Pomocnicza konwersja event.data -> Uint8Array
     const toUint8Array = async (data: unknown): Promise<Uint8Array> => {
@@ -38,6 +39,7 @@ const Client: React.FC = () => {
             try {
                 const buffer = await toUint8Array(event.data);
                 const decoded = WebSocketMessage.decode(buffer);
+                console.log("Received message")
 
                 // ✅ Reset TYLKO przy zaakceptowanym joinie
                 if (decoded.joinSessionResponse?.accepted) {
@@ -53,6 +55,12 @@ const Client: React.FC = () => {
                         color: p.color,
                         sid: p.sid
                     });
+                }
+                else if (decoded.play) {
+                    setIsPlaying(true);
+                }
+                else if (decoded.stop) {
+                    setIsPlaying(false);
                 }
             } catch (err) {
                 console.error("[Client] Protobuf decode error:", err);
@@ -102,6 +110,7 @@ const Client: React.FC = () => {
                 speed={params.speed}
                 color={params.color}
                 resetToken={resetToken}
+                isPlaying={isPlaying}
             />
         </div>
     );

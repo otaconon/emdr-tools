@@ -65,10 +65,6 @@ const Host: React.FC = () => {
                 } else if (msg.params) {
                     // echo/odbicia – bez resetu
                     // console.log("[Host] Echo Params:", msg.params);
-                } else if (msg.play) {
-                    setIsPlaying(true);
-                } else if (msg.stop) {
-                    setIsPlaying(false);
                 }
             } catch (e) {
                 console.error("[Host] Decode error:", e);
@@ -115,6 +111,25 @@ const Host: React.FC = () => {
         socket.send(buffer);
     };
 
+    const playStop = () => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.warn("WebSocket nie jest połączony");
+        }
+        else {
+            let wsMsg: WebSocketMessage;
+            if (!isPlaying) {
+                wsMsg = WebSocketMessage.create({ play: {} });
+            }
+            else {
+                wsMsg = WebSocketMessage.create({ stop: {} });
+            }
+            const buffer = WebSocketMessage.encode(wsMsg).finish();
+            socket.send(buffer);
+        }
+
+        setIsPlaying(!isPlaying);
+    };
+
     // Live update (size + speed) – bez resetu
     const lastSentAtRef = useRef<number>(0);
     const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -152,6 +167,7 @@ const Host: React.FC = () => {
                     color={color}
                     boundToParent
                     resetToken={resetToken} // reset tylko na join
+                    isPlaying={isPlaying}
                     onBounce={() => setBounceCount(c => c + 1)}
                 />
             </section>
@@ -162,6 +178,9 @@ const Host: React.FC = () => {
                 <div className="session-box">
                     <div className="session-row">
                         <div className="left-column">
+                            <button type="button" className="play-stop" onClick={playStop}>
+                                {isPlaying ? "Stop" : "Play"}
+                            </button>
                             <button type="button" className="create-link-btn" onClick={createSession}>
                                 Utwórz linka
                             </button>
@@ -173,8 +192,8 @@ const Host: React.FC = () => {
                                 {clientConnected ? "Klient podłączony" : "Oczekiwanie na klienta…"}
                             </div>
                         </div>
-                        <div className="bounce-counter">
-                            Bounces: <strong>{bounceCount}</strong>
+                        <div className="bounce-counte">
+                            Liczba odbic: <strong>{bounceCount}</strong>
                         </div>
                     </div>
 

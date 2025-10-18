@@ -20,7 +20,7 @@ const MovingCircle: React.FC<MovingCircleProps> = ({
     boundToParent = false,
     resetToken,
     onBounce,
-    isPlaying,
+    isPlaying = false,
 }) => {
     const [positionX, setPositionX] = useState(0);
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -90,7 +90,7 @@ const MovingCircle: React.FC<MovingCircleProps> = ({
         return () => {
             if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
         };
-    }, [containerWidth]);
+    }, [containerWidth, isPlaying, onBounce]);
 
     // 🔁 Reset pozycji po zmianie resetToken
     useEffect(() => {
