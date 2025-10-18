@@ -35,6 +35,7 @@ impl Session {
 #[derive(Default)]
 pub struct ConnectionHandler {
   conns: Arc<Mutex<HashMap<u32, (WsSenderType, WsReceiverType)>>>,
+  conn_to_session: Arc<Mutex<HashMap<u32, String>>>,
   sessions: Arc<Mutex<HashMap<String, Session>>>,
   current_conn_id: Mutex<u32>,
 }
@@ -146,6 +147,7 @@ impl ConnectionHandler {
       self.send_message(&id, &msg).await.unwrap_or_else(|e| log::error!("{}", e));
     }
 
+    log::info!("Messaged session: {}", session_id);
     Ok(())
   }
 
@@ -160,6 +162,7 @@ impl ConnectionHandler {
     let mut sessions = self.sessions.lock().await;
     let session = sessions.get_mut(session_id).ok_or_else(|| format!("Tried to join session: {}, but it doesn't exist", session_id).to_string())?;
     session.client_ids.push(client_id.clone());
+    self.conn_to_session.lock().await.insert(*client_id, session_id.to_string());
 
     Ok(())
   }
@@ -170,6 +173,8 @@ impl ConnectionHandler {
       Some(ProtoMessage::Params(params)) => self.handle_params(&params, &cloned_msg).await,
       Some(ProtoMessage::CreateSessionRequest(_)) => self.handle_create_session_request(conn_id).await,
       Some(ProtoMessage::JoinSessionRequest(join_request)) => self.handle_join_session_request(&join_request, &conn_id).await,
+      Some(ProtoMessage::Play(_)) => self.handle_play(conn_id).await,
+      Some(ProtoMessage::Stop(_)) => self.handle_stop(conn_id).await,
       _ => log::warn!("Received message of unknown type"),
     }
   }
@@ -212,6 +217,24 @@ impl ConnectionHandler {
       if session.params_msg.message != None {
         self.send_message(&conn_id, &session.params_msg).await.unwrap_or_else(|e| log::error!("{}", e));
       }
+    }
+  }
+
+  async fn handle_play(&self, conn_id: &u32) {
+    log::info!("Play message");
+
+    match self.conn_to_session.lock().await.get(conn_id) {
+      Some(sid) => self.message_session(&sid, &WebSocketMessage{message: Some(ProtoMessage::Play(comm::Play{}))}).await.unwrap_or_else(|e| log::error!("{}", e)),
+      None => return
+    }
+  }
+
+  async fn handle_stop(&self, conn_id: &u32) {
+   log::info!("Stop message");
+
+    match self.conn_to_session.lock().await.get(conn_id) {
+      Some(sid) => self.message_session(&sid, &WebSocketMessage{message: Some(ProtoMessage::Stop(comm::Stop{}))}).await.unwrap_or_else(|e| log::error!("{}", e)),
+      None => return
     }
   }
 }
