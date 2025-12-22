@@ -108,23 +108,28 @@ where
       break;
     }
 
-    let msg: WsMessage = match tokio::time::timeout(remaining, ws.next()).await {
+    let msg = match tokio::time::timeout(remaining, ws.next()).await {
       Ok(Some(Ok(msg))) => msg,
       Ok(Some(Err(e))) => return Err(anyhow!("websocket error: {}", e)),
       Ok(None) => return Err(anyhow!("websocket stream ended")),
       Err(_) => break,
     };
 
-    let bytes = match &msg {
-      WsMessage::Binary(_) | WsMessage::Text(_) => msg.into_data(),
+    match msg {
+      WsMessage::Binary(data) => {
+        if !data.is_empty() {
+          messages.push(WebSocketMessage::decode(&data[..])?);
+        }
+      }
+      WsMessage::Ping(_) => {
+        continue;
+      }
       WsMessage::Close(frame) => {
         let reason = frame.as_ref().map(|f| f.reason.to_string()).unwrap_or_default();
         return Err(anyhow!("websocket closed by peer: {}", reason));
       }
       other => return Err(anyhow!("unexpected WS frame: {other:?}")),
-    };
-
-    messages.push(WebSocketMessage::decode(&bytes[..])?);
+    }
   }
 
   Ok(messages)
@@ -150,7 +155,7 @@ pub async fn create_session(ws: &mut Ws) -> Result<Responses> {
   };
   send_proto(ws, req).await?;
 
-  let msgs = recv_protos(ws, Duration::from_secs(1), 1).await?;
+  let msgs = recv_protos(ws, Duration::from_secs(3), 3).await?;
   Ok(transform_protos(&msgs).await)
 }
 
@@ -168,6 +173,6 @@ pub async fn send_params(sender_ws: &mut Ws, receiver_ws: &mut Ws, params: comm:
   let req = WebSocketMessage { message: Some(ProtoMessage::Params(params)) };
   send_proto(sender_ws, req).await?;
 
-  let msgs = recv_protos(receiver_ws, Duration::from_secs(1), 1).await?;
+  let msgs = recv_protos(receiver_ws, Duration::from_secs(1), 3).await?;
   Ok(transform_protos(&msgs).await)
 }

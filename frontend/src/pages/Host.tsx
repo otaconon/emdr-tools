@@ -11,12 +11,14 @@ const Host: React.FC = () => {
     const [speed, setSpeed] = useState(200);
     const [color, setColor] = useState("#00ff00");
     const [isUpdated, setIsUpdated] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(true);
 
     const [sessionUrl, setSessionUrl] = useState<string | null>(null);
     const [sid, setSid] = useState<string | null>(null);
 
     // resetToken – powoduje start od lewej po zmianie (używany TYLKO przy joinie)
     const [resetToken, setResetToken] = useState(0);
+    const [bounceCount, setBounceCount] = useState(0);
 
     // Status klienta
     const [clientConnected, setClientConnected] = useState(false);
@@ -55,10 +57,10 @@ const Host: React.FC = () => {
                         }
                     }
                 } else if (msg.joinSessionResponse) {
-                    // 🎯 Ktoś dołączył do tej sesji – ustaw status i zresetuj kulkę po stronie hosta
                     if (msg.joinSessionResponse.accepted) {
                         setClientConnected(true);
-                        setResetToken(t => t + 1); // <<< start od lewej
+                        setResetToken(t => t + 1);
+                        setBounceCount(0);
                     }
                 } else if (msg.params) {
                     // echo/odbicia – bez resetu
@@ -97,7 +99,6 @@ const Host: React.FC = () => {
         if (!ok) return;
         setIsUpdated(true);
         setTimeout(() => setIsUpdated(false), 1000);
-        // ❌ brak setResetToken – parametry nie resetują pozycji kulki
     };
 
     const createSession = () => {
@@ -108,6 +109,25 @@ const Host: React.FC = () => {
         const wsMsg = WebSocketMessage.create({ createSessionRequest: {} });
         const buffer = WebSocketMessage.encode(wsMsg).finish();
         socket.send(buffer);
+    };
+
+    const playStop = () => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.warn("WebSocket nie jest połączony");
+        }
+        else {
+            let wsMsg: WebSocketMessage;
+            if (!isPlaying) {
+                wsMsg = WebSocketMessage.create({ play: {} });
+            }
+            else {
+                wsMsg = WebSocketMessage.create({ stop: {} });
+            }
+            const buffer = WebSocketMessage.encode(wsMsg).finish();
+            socket.send(buffer);
+        }
+
+        setIsPlaying(!isPlaying);
     };
 
     // Live update (size + speed) – bez resetu
@@ -147,6 +167,8 @@ const Host: React.FC = () => {
                     color={color}
                     boundToParent
                     resetToken={resetToken} // reset tylko na join
+                    isPlaying={isPlaying}
+                    onBounce={() => setBounceCount(c => c + 1)}
                 />
             </section>
 
@@ -155,15 +177,23 @@ const Host: React.FC = () => {
 
                 <div className="session-box">
                     <div className="session-row">
-                        <button type="button" className="create-link-btn" onClick={createSession}>
-                            Utwórz linka
-                        </button>
-                        <div
-                            className={`client-status-badge ${clientConnected ? "connected" : "waiting"}`}
-                            aria-live="polite"
-                        >
-                            <span className="dot" />
-                            {clientConnected ? "Klient podłączony" : "Oczekiwanie na klienta…"}
+                        <div className="left-column">
+                            <button type="button" className="play-stop" onClick={playStop}>
+                                {isPlaying ? "Stop" : "Play"}
+                            </button>
+                            <button type="button" className="create-link-btn" onClick={createSession}>
+                                Utwórz linka
+                            </button>
+                            <div
+                                className={`client-status-badge ${clientConnected ? "connected" : "waiting"}`}
+                                aria-live="polite"
+                            >
+                                <span className="dot" />
+                                {clientConnected ? "Klient podłączony" : "Oczekiwanie na klienta…"}
+                            </div>
+                        </div>
+                        <div className="bounce-counte">
+                            Liczba odbic: <strong>{bounceCount}</strong>
                         </div>
                     </div>
 

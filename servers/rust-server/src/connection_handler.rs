@@ -7,6 +7,7 @@ use prost::Message;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::{WebSocketStream, accept_async, tungstenite::Message as TokioMessage};
+use tokio::time::{interval, MissedTickBehavior, Duration};
 use uuid::Uuid;
 
 pub mod comm {
@@ -19,18 +20,22 @@ type WsReceiverType = Arc<Mutex<SplitStream<tokio_tungstenite::WebSocketStream<T
 
 pub struct Session {
   client_ids: Vec<u32>,
-  params_msg: WebSocketMessage
+  params_msg: WebSocketMessage,
 }
 
 impl Session {
   pub fn new() -> Self {
-    Self { client_ids: Vec::new(), params_msg: WebSocketMessage::default() }
+    Self {
+      client_ids: Vec::new(),
+      params_msg: WebSocketMessage::default(),
+    }
   }
 }
 
 #[derive(Default)]
 pub struct ConnectionHandler {
   conns: Arc<Mutex<HashMap<u32, (WsSenderType, WsReceiverType)>>>,
+  conn_to_session: Arc<Mutex<HashMap<u32, String>>>,
   sessions: Arc<Mutex<HashMap<String, Session>>>,
   current_conn_id: Mutex<u32>,
 }
@@ -40,8 +45,31 @@ impl ConnectionHandler {
     let ws_stream = accept_async(stream).await?;
     let conn_id = self.current_conn_id.lock().await.clone();
     let (sender, receiver) = ws_stream.split();
-    self.conns.lock().await.insert(conn_id.clone(), (Arc::new(Mutex::new(sender)), Arc::new(Mutex::new(receiver))));
+    let sender = Arc::new(Mutex::new(sender));
+    let receiver = Arc::new(Mutex::new(receiver));
+    
+    self.conns.lock().await.insert(conn_id.clone(), (sender.clone(), receiver));
     *self.current_conn_id.lock().await += 1;
+
+    let hb_sender = sender.clone();
+    let hb_conn_id = conn_id.clone();
+    tokio::spawn(async move {
+      let mut tick = interval(Duration::from_secs(25));
+      tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+      loop {
+        tick.tick().await;
+        match hb_sender.lock().await.send(TokioMessage::Ping(prost::bytes::Bytes::new())).await {
+          Ok(_) => {
+            log::trace!("Sent heartbeat ping to {}", hb_conn_id);
+          }
+          Err(e) => {
+            log::debug!("Heartbeat stopped for {}: {}", hb_conn_id, e);
+            break;
+          }
+        }
+      }
+    });
 
     log::info!("WebSocket connected with: {}", &conn_id);
     Ok(conn_id)
@@ -119,6 +147,7 @@ impl ConnectionHandler {
       self.send_message(&id, &msg).await.unwrap_or_else(|e| log::error!("{}", e));
     }
 
+    log::info!("Messaged session: {}", session_id);
     Ok(())
   }
 
@@ -133,6 +162,7 @@ impl ConnectionHandler {
     let mut sessions = self.sessions.lock().await;
     let session = sessions.get_mut(session_id).ok_or_else(|| format!("Tried to join session: {}, but it doesn't exist", session_id).to_string())?;
     session.client_ids.push(client_id.clone());
+    self.conn_to_session.lock().await.insert(*client_id, session_id.to_string());
 
     Ok(())
   }
@@ -143,6 +173,8 @@ impl ConnectionHandler {
       Some(ProtoMessage::Params(params)) => self.handle_params(&params, &cloned_msg).await,
       Some(ProtoMessage::CreateSessionRequest(_)) => self.handle_create_session_request(conn_id).await,
       Some(ProtoMessage::JoinSessionRequest(join_request)) => self.handle_join_session_request(&join_request, &conn_id).await,
+      Some(ProtoMessage::Play(_)) => self.handle_play(conn_id).await,
+      Some(ProtoMessage::Stop(_)) => self.handle_stop(conn_id).await,
       _ => log::warn!("Received message of unknown type"),
     }
   }
@@ -160,7 +192,12 @@ impl ConnectionHandler {
   async fn handle_create_session_request(&self, conn_id: &u32) {
     log::info!("Creating session");
     let session_id = self.create_session().await;
-    let session_url = format!("https://test-f0m.pages.dev/client?sid={}", session_id);
+    let session_url;
+    if cfg!(debug_assertions) {
+      session_url = format!("http://localhost:5173/client?sid={}", session_id);
+    } else {
+      session_url = format!("https://test-f0m.pages.dev/client?sid={}", session_id);
+    }
     let response_msg = WebSocketMessage {
       message: Some(ProtoMessage::CreateSessionResponse(comm::CreateSessionResponse { accepted: true, session_url })),
     };
@@ -185,6 +222,24 @@ impl ConnectionHandler {
       if session.params_msg.message != None {
         self.send_message(&conn_id, &session.params_msg).await.unwrap_or_else(|e| log::error!("{}", e));
       }
+    }
+  }
+
+  async fn handle_play(&self, conn_id: &u32) {
+    log::info!("Play message");
+
+    match self.conn_to_session.lock().await.get(conn_id) {
+      Some(sid) => self.message_session(&sid, &WebSocketMessage{message: Some(ProtoMessage::Play(comm::Play{}))}).await.unwrap_or_else(|e| log::error!("{}", e)),
+      None => return
+    }
+  }
+
+  async fn handle_stop(&self, conn_id: &u32) {
+   log::info!("Stop message");
+
+    match self.conn_to_session.lock().await.get(conn_id) {
+      Some(sid) => self.message_session(&sid, &WebSocketMessage{message: Some(ProtoMessage::Stop(comm::Stop{}))}).await.unwrap_or_else(|e| log::error!("{}", e)),
+      None => return
     }
   }
 }
