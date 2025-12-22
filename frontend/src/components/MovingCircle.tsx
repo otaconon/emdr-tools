@@ -5,9 +5,7 @@ interface MovingCircleProps {
     size: number;
     speed: number;
     color: string;
-    /** Ogranicza animację do rozmiaru rodzica (sekcja podglądu) */
     boundToParent?: boolean;
-    /** Zmiana tej wartości powoduje restart ruchu od lewej krawędzi */
     resetToken?: number | string;
     onBounce?: () => void;
     isPlaying?: boolean;
@@ -25,6 +23,9 @@ const MovingCircle: React.FC<MovingCircleProps> = ({
     const [positionX, setPositionX] = useState(0);
     const [containerWidth, setContainerWidth] = useState<number>(0);
 
+    // 1. Add a Ref to track position synchronously for the physics loop
+    const positionRef = useRef(0);
+    
     const direction = useRef(1);
     const speedRef = useRef(speed);
     const sizeRef = useRef(size);
@@ -32,13 +33,13 @@ const MovingCircle: React.FC<MovingCircleProps> = ({
     const lastTimeRef = useRef<number | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
 
-    // Aktualizuj referencje gdy zmieniają się propsy
+    // Update refs when props change
     useEffect(() => {
         speedRef.current = speed;
         sizeRef.current = size;
     }, [speed, size]);
 
-    // Ustalanie szerokości kontenera (okno lub rodzic)
+    // Handle container resizing
     useEffect(() => {
         if (boundToParent) {
             const el = containerRef.current;
@@ -59,27 +60,31 @@ const MovingCircle: React.FC<MovingCircleProps> = ({
         }
     }, [boundToParent]);
 
-    // Główna pętla animacji
+    // Main Animation Loop
     useEffect(() => {
         const animate = (time: number) => {
             const last = lastTimeRef.current;
             if (last != null) {
                 const delta = (time - last) / 1000;
                 if (isPlaying) {
-                    setPositionX((prev) => {
-                        let next = prev + direction.current * speedRef.current * delta;
-                        const maxX = Math.max(0, containerWidth - sizeRef.current);
-                        if (next < 0) {
-                            next = 0;
-                            direction.current = 1;
-                            onBounce?.();
-                        } else if (next > maxX) {
-                            next = maxX;
-                            direction.current = -1;
-                            onBounce?.();
-                        }
-                        return next;
-                    });
+                    // 2. Perform calculations using the REF (synchronous)
+                    let next = positionRef.current + direction.current * speedRef.current * delta;
+                    const maxX = Math.max(0, containerWidth - sizeRef.current);
+
+                    // 3. Handle logic OUTSIDE of setPositionX
+                    if (next < 0) {
+                        next = 0;
+                        direction.current = 1;
+                        onBounce?.(); // Safe to call here!
+                    } else if (next > maxX) {
+                        next = maxX;
+                        direction.current = -1;
+                        onBounce?.(); // Safe to call here!
+                    }
+
+                    // 4. Update Ref and State
+                    positionRef.current = next;
+                    setPositionX(next);
                 }
             }
             lastTimeRef.current = time;
@@ -90,15 +95,14 @@ const MovingCircle: React.FC<MovingCircleProps> = ({
         return () => {
             if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
         };
-    }, [containerWidth, isPlaying, onBounce]);
+    }, [containerWidth, isPlaying, onBounce]); // onBounce dependency is safe now
 
-    // 🔁 Reset pozycji po zmianie resetToken
+    // Reset logic
     useEffect(() => {
         if (resetToken === undefined) return;
-        // Start od lewej
         setPositionX(0);
+        positionRef.current = 0; // Don't forget to reset the Ref too!
         direction.current = 1;
-        // Uniknij "skoku" po restarcie (duży delta)
         lastTimeRef.current = null;
     }, [resetToken]);
 

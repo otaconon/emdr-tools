@@ -41,7 +41,7 @@ const Client: React.FC = () => {
                 const decoded = WebSocketMessage.decode(buffer);
                 console.log("Received message")
 
-                // ✅ Reset TYLKO przy zaakceptowanym joinie
+                // Reset TYLKO przy zaakceptowanym joinie
                 if (decoded.joinSessionResponse?.accepted) {
                     setResetToken((t) => t + 1);
                 }
@@ -94,12 +94,13 @@ const Client: React.FC = () => {
 
         if (socket.readyState === WebSocket.OPEN) {
             sendJoin();
-        } else {
-            const onOpen = () => {
-                sendJoin();
-            };
+        } else if (socket.readyState === WebSocket.CONNECTING) {
+            const onOpen = () => sendJoin();
             socket.addEventListener("open", onOpen, { once: true });
             return () => socket.removeEventListener("open", onOpen);
+        }
+        else {
+            console.error("Socket is disconnected. Refresh the page to reconnect.");
         }
     }, [sid]);
 
