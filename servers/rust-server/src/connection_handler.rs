@@ -196,7 +196,7 @@ impl ConnectionHandler {
     if cfg!(debug_assertions) {
       session_url = format!("http://localhost:5173/client?sid={}", session_id);
     } else {
-      session_url = format!("https://test-f0m.pages.dev/client?sid={}", session_id);
+      session_url = format!("https://emdr-terapia.pages.dev/client?sid={}", session_id);
     }
     let response_msg = WebSocketMessage {
       message: Some(ProtoMessage::CreateSessionResponse(comm::CreateSessionResponse { accepted: true, session_url })),
