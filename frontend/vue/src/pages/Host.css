@@ -1,0 +1,293 @@
+:root {
+  /* Light Mode - Slate & Indigo */
+  --bg: #f8fafc;
+  --bg-soft: #e2e8f0;
+  --border: #cbd5e1;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #6366f1;       /* Indigo */
+  --accent-2: #10b981;     /* Emerald */
+  --control-bg: #ffffff;
+  --btn-bg: #ffffff;
+  --btn-hover: #f1f5f9;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #09090b;           /* Extremely dark gray, almost black */
+    --bg-soft: #000000;      /* Pure black for the top preview area */
+    --border: #27272a;       /* Much subtler, darker borders */
+    --text: #fafafa;         /* Crisp white text */
+    --muted: #a1a1aa;        /* Softer muted gray */
+    --accent: #818cf8;       /* Indigo */
+    --accent-2: #34d399;     /* Emerald */
+    
+    /* Controls and Buttons */
+    --control-bg: #121214;   /* Just barely lighter than the background */
+    --btn-bg: #18181b;       /* Slightly elevated for visibility */
+    --btn-hover: #27272a;    /* Clear hover state */
+    
+    /* Deeper shadows for darker backgrounds */
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Reset */
+html, body, #root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.host-root {
+  position: fixed;              
+  inset: 0;                     
+  height: 100svh;               
+  width: 100vw;                 
+  display: grid;
+  grid-template-rows: 1fr auto; 
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;             
+  box-sizing: border-box;
+}
+
+.preview-surface {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-soft);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+/* Lower panel */
+.controls-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px clamp(12px, 2.5vw, 28px);
+  background: var(--bg);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.controls-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.control label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.value-badge {
+  align-self: flex-start;
+  padding: 3px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: transparent;
+}
+.value-badge--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* Slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  width: 100%;
+}
+
+/* Bar */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+  border-radius: 999px;
+}
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+  border-radius: 999px;
+}
+
+/* Kciuk */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+/* Filled fragment in FF */
+input[type="range"]::-moz-range-progress {
+  height: 6px;
+  background: var(--accent);
+  border-radius: 999px 0 0 999px;
+}
+
+/* Color input */
+input[type="color"] {
+  inline-size: 68px;
+  block-size: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--control-bg);
+  padding: 2px;
+  cursor: pointer;
+}
+
+/* Buttons */
+.actions {
+  margin-top: 2px;
+}
+
+.btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border); /* Adds definition */
+  border-radius: 10px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 0.2s ease, 
+              box-shadow 0.2s ease;
+  box-shadow: var(--shadow);
+  user-select: none;
+}
+
+/* Add a slight hover effect */
+.btn:hover {
+  background: var(--btn-hover);
+}
+
+/* The satisfying "press" animation */
+.btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+}
+
+/* Remove default artifact, add custom focus ring */
+.btn:focus {
+  outline: none;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn.clicked {
+  background: var(--accent-2) !important;
+  border-color: var(--accent-2) !important;
+  color: #fff !important;
+  transform: scale(1);
+}
+
+.host-root * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.first-row {
+  display: grid;
+  /* Left column sizes to its content, right column takes the remaining space */
+  grid-template-columns: max-content 1fr; 
+  /* Two rows that share the height equally */
+  grid-template-rows: 1fr 1fr; 
+  gap: 12px 24px; /* 12px vertical gap, 24px horizontal gap */
+  align-items: center; /* Vertically centers the items in their cells */
+}
+
+/* Put Play button in Top-Left */
+.first-row .play-stop {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%; /* Makes button fill the column width */
+}
+
+/* Put Bounce counter in Bottom-Left */
+.first-row .bounce-counter {
+  grid-column: 1;
+  grid-row: 2;
+  font-size: 24px;
+}
+
+/* Put Speed control in the Right column, spanning BOTH rows */
+.first-row .speed-control {
+  grid-column: 2;
+  grid-row: 1 / span 2; /* This is the magic line! */
+  
+  /* Optional: Makes the control box stretch to fill the full height */
+  height: 100%; 
+  justify-content: center; 
+}
+
+.second-row {
+  display: grid;
+  /* 1st column (slider) stretches to fill space. 2nd column (color) hugs its content */
+  grid-template-columns: 1fr max-content; 
+  gap: 16px; /* Space between the two controls */
+  align-items: stretch; /* Makes both control boxes the exact same height */
+}
+
+.third-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* Optional: Make the color control perfectly center its contents */
+.color-control {
+  align-items: center; /* Centers the label, input, and badge horizontally */
+  justify-content: space-between; /* Spreads them evenly top-to-bottom */
+}
+
+.controls-row {
+  display: flex;
+  flex-direction: row; /* Puts buttons and counter side-by-side */
+  align-items: center; /* Vertically centers the text with the buttons */
+  gap: 1rem; /* Space between buttons and counter */
+  flex-wrap: wrap; /* Prevents squishing on very small phone screens */
+}
+
+@supports not (height: 100svh) {
+  .host-root { height: 100vh; }
+}
