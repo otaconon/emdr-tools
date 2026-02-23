@@ -224,5 +224,4 @@ watch([size, speed, color], ([newSize, newSpeed, newColor]) => {
   localStorage.setItem("host-speed", newSpeed.toString());
   localStorage.setItem("host-color", newColor);
 });
-
 </script>
